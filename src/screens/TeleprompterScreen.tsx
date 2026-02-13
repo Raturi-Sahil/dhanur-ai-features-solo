@@ -5,7 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Script } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import Slider from '@react-native-community/slider';
 
 
 export default function TeleprompterScreen() {
@@ -20,6 +21,9 @@ export default function TeleprompterScreen() {
     const [scrollSpeed, setScrollSpeed] = useState(2); // pixels per interval
     const [fontSize, setFontSize] = useState(28);     // font size in px
     const [isMirrored, setIsMirrored] = useState(false); // mirror mode for front camera
+    const [isOverlayMode, setIsOverlayMode] = useState(false);
+    const [textOpacity, setTextOpacity] = useState(1);
+    const [permission, requestPermission] = useCameraPermissions();
 
     // Add settings button to header
     useEffect(() => {
@@ -77,58 +81,108 @@ export default function TeleprompterScreen() {
         }, [])
     );
 
+    const handleOverlayToggle = async () => {
+        const { status }: any = await requestPermission();
+        if (status !== 'granted') {
+            alert('Camera permission is required for overlay mode');
+            return;
+        }
+        setIsOverlayMode(!isOverlayMode);
+    }
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: isOverlayMode ? "transparent" : "#0f0f1e" }]}>
             {showSettings && (
                 <View style={styles.settingsPanel}>
-                    <Text style={styles.settingLabel}>Speed: {scrollSpeed}x</Text>
-                    <View style={styles.controlRow}>
-                        <TouchableOpacity style={styles.controlButton} onPress={() => setScrollSpeed(Math.max(0.5, scrollSpeed - 0.5))}>
-                            <Ionicons name="remove" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <View style={styles.controlBar}>
-                            <View style={[styles.controlFill, { width: `${(scrollSpeed / 5) * 100}%` }]} />
-                        </View>
-                        <TouchableOpacity style={styles.controlButton} onPress={() => setScrollSpeed(Math.min(5, scrollSpeed + 0.5))}>
-                            <Ionicons name="add" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
+                    <View style={styles.controlGroup}>
+                        <Text style={styles.settingLabel}>Speed: {scrollSpeed}x</Text>
+                        <Slider
+                            style={{ width: 200, height: 40 }}
+                            minimumValue={0.5}
+                            maximumValue={5}
+                            onValueChange={(value) => setScrollSpeed(value)}
+                            step={0.1}
+                            value={scrollSpeed}
+                        />
                     </View>
 
-                    <Text style={styles.settingLabel}>Font Size: {fontSize}px</Text>
-                    <View style={styles.controlRow}>
-                        <TouchableOpacity style={styles.controlButton} onPress={() => setFontSize(Math.max(16, fontSize - 4))}>
-                            <Ionicons name="remove" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <View style={styles.controlBar}>
-                            <View style={[styles.controlFill, { width: `${((fontSize - 16) / 48) * 100}%` }]} />
+                    <View style={styles.controlGroup}>
+                        <Text style={styles.settingLabel}>Font Size: {fontSize}px</Text>
+                        <View style={styles.controlRow}>
+                            <Slider
+                                style={{ width: 200, height: 40 }}
+                                minimumValue={16}
+                                maximumValue={64}
+                                onValueChange={(value) => setFontSize(value)}
+                                step={1}
+                                value={fontSize}
+                            />
                         </View>
-                        <TouchableOpacity style={styles.controlButton} onPress={() => setFontSize(Math.min(64, fontSize + 4))}>
-                            <Ionicons name="add" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
                     </View>
 
-                    <Text style={styles.settingLabel}>Mirror Mode</Text>
-                    <TouchableOpacity
-                        style={[styles.mirrorToggle, isMirrored && styles.mirrorToggleActive]}
-                        onPress={() => setIsMirrored(!isMirrored)}
-                    >
-                        <Ionicons name="swap-horizontal" size={24} color={isMirrored ? "#00D9E1" : "#FFFFFF"} />
-                        <Text style={[styles.mirrorText, isMirrored && styles.mirrorTextActive]}>
-                            {isMirrored ? 'ON' : 'OFF'}
-                        </Text>
-                    </TouchableOpacity>
+                    <View style={styles.controlGroup}>
+                        <Text style={styles.settingLabel}>Text Opacity: {textOpacity}</Text>
+                        <View style={styles.controlRow}>
+                            <Slider
+                                style={{ width: 200, height: 40 }}
+                                minimumValue={0.1}
+                                maximumValue={1}
+                                onValueChange={(value) => setTextOpacity(value)}
+                                step={0.1}
+                                value={textOpacity}
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.controlRow}>
+                        <View style={styles.controlGroup}>
+                            <Text style={styles.settingLabel}>Mirror Mode</Text>
+                            <TouchableOpacity
+                                style={[styles.mirrorToggle, isMirrored && styles.mirrorToggleActive]}
+                                onPress={() => setIsMirrored(!isMirrored)}
+                            >
+                                <Ionicons name="swap-horizontal" size={24} color={isMirrored ? "#00D9E1" : "#FFFFFF"} />
+                                <Text style={[styles.mirrorText, isMirrored && styles.mirrorTextActive]}>
+                                    {isMirrored ? 'ON' : 'OFF'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.controlGroup}>
+                            <Text style={styles.settingLabel}>Overlay Mode</Text>
+                            <TouchableOpacity
+                                style={[styles.mirrorToggle, isOverlayMode && styles.mirrorToggleActive]}
+                                onPress={handleOverlayToggle}
+                            >
+                                <Ionicons name="swap-horizontal" size={24} color={isOverlayMode ? "#00D9E1" : "#FFFFFF"} />
+                                <Text style={[styles.mirrorText, isOverlayMode && styles.mirrorTextActive]}>
+                                    {isOverlayMode ? 'ON' : 'OFF'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
             )}
-            <ScrollView
-                ref={scrollViewRef}
-                style={[
-                    styles.scrollView,
-                    isMirrored && { transform: [{ scaleX: -1 }] }
-                ]}
-                contentContainerStyle={styles.contentContainer}
-            >
-                <Text style={[styles.text, { fontSize }]}>{currentScript?.content || "No scripts yet!"}</Text>
-            </ScrollView>
+
+            <View style={{ flex: 1 }}>
+                {isOverlayMode && <CameraView
+                    facing="front"
+                    style={styles.camera}
+                />}
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={[
+                        styles.scrollView,
+                        isMirrored && { transform: [{ scaleX: -1 }] },
+                        { opacity: isOverlayMode ? textOpacity : 1 }
+                    ]}
+                    contentContainerStyle={styles.contentContainer}
+                >
+
+                    <Text style={[styles.text, { fontSize }]}>{currentScript?.content || "No scripts yet!"}</Text>
+                </ScrollView>
+
+            </View>
 
             <View style={styles.buttonContainer}>
                 <TouchableOpacity style={styles.button} onPress={() => setIsScrolling(!isScrolling)}>
@@ -258,6 +312,8 @@ const styles = StyleSheet.create({
         margin: 10,
     },
     settingsPanel: {
+        justifyContent: 'center',
+        alignItems: 'center',
         backgroundColor: 'rgba(0, 0, 0, 0.95)',
         padding: 24,
         borderBottomWidth: 2,
@@ -276,11 +332,21 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
         textTransform: 'uppercase',
     },
+
     controlRow: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 12,
+        gap: 20,
     },
+
+    controlGroup: {
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 2,
+    },
+
     controlButton: {
         backgroundColor: 'rgba(0, 184, 212, 0.25)',
         borderRadius: 10,
@@ -337,4 +403,12 @@ const styles = StyleSheet.create({
     mirrorTextActive: {
         color: '#00D9E1',
     },
+    camera: {
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: -1,
+    }
 });
