@@ -55,6 +55,13 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
           "recordAudioAndroid": true
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to save recorded videos to your gallery",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save recorded videos to your gallery"
+        }
       ]
     ]
   }

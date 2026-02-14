@@ -5,14 +5,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Script } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, CameraNativeModule } from 'expo-camera';
 import Slider from '@react-native-community/slider';
+import * as MediaLibrary from 'expo-media-library';
+import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
 
 export default function TeleprompterScreen() {
     const scrollViewRef = useRef(null);
     const scrollPosition = useRef(0);
-    const [isScrolling, setIsScrolling] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
     const [scripts, setScripts] = useState<Script[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const currentScript = scripts[selectedIndex] || null;
@@ -24,6 +26,8 @@ export default function TeleprompterScreen() {
     const [isOverlayMode, setIsOverlayMode] = useState(false);
     const [textOpacity, setTextOpacity] = useState(1);
     const [permission, requestPermission] = useCameraPermissions();
+    const cameraRef = useRef(null);
+
 
     // Add settings button to header
     useEffect(() => {
@@ -53,19 +57,32 @@ export default function TeleprompterScreen() {
 
     useEffect(() => {
         let interval: any;
-        if (isScrolling) {
+        if (isRecording) {
             interval = setInterval(() => {
                 scrollPosition.current += scrollSpeed;  // Dynamic speed!
                 scrollViewRef.current.scrollTo({ y: scrollPosition.current, animated: false });
             }, 50);
         }
         return () => clearInterval(interval);
-    }, [isScrolling])
+    }, [isRecording])
 
-    const handleReset = () => {
+    const handleStop = async () => {
+        scrollPosition.current = 0;
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        await cameraRef.current.stopRecording();
+        setIsRecording(false);
+    }
+
+    const handleStartRecording = () => {
         scrollPosition.current = 0;
         scrollViewRef.current.scrollTo({ y: 0, animated: true })
-        setIsScrolling(false);
+        cameraRef.current.recordAsync()
+            .then(({ uri }) => {
+                MediaLibrary.saveToLibraryAsync(uri);
+            }).catch((error) => {
+                console.log('Recording error', error);
+            });
+        setIsRecording(true);
     }
 
     useFocusEffect(
@@ -82,10 +99,15 @@ export default function TeleprompterScreen() {
     );
 
     const handleOverlayToggle = async () => {
-        const { status }: any = await requestPermission();
-        if (status !== 'granted') {
-            alert('Camera permission is required for overlay mode');
-            return;
+        if (!isOverlayMode) {
+            const { status: cameraStatus } = await requestPermission();
+            const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
+            const { status: speechStatus } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+
+            if (cameraStatus !== 'granted' || mediaStatus !== 'granted' || speechStatus !== 'granted') {
+                alert('Camera, Media, and Speech permissions are required for overlay mode');
+                return;
+            }
         }
         setIsOverlayMode(!isOverlayMode);
     }
@@ -166,6 +188,8 @@ export default function TeleprompterScreen() {
 
             <View style={{ flex: 1 }}>
                 {isOverlayMode && <CameraView
+                    mode="video"
+                    ref={cameraRef}
                     facing="front"
                     style={styles.camera}
                 />}
@@ -185,8 +209,12 @@ export default function TeleprompterScreen() {
             </View>
 
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.button} onPress={() => setIsScrolling(!isScrolling)}>
-                    <Text style={styles.buttonText}>{isScrolling ? 'Stop' : 'Start'}</Text>
+                <TouchableOpacity
+                    style={styles.button}
+                    onPress={handleStartRecording}
+                    disabled={!isOverlayMode || isRecording}
+                >
+                    <Text style={styles.buttonText}>Start</Text>
                 </TouchableOpacity>
 
                 <View style={styles.scriptNavigator}>
@@ -199,8 +227,12 @@ export default function TeleprompterScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.button} onPress={handleReset}>
-                    <Text style={styles.buttonText}>Reset</Text>
+                <TouchableOpacity
+                    style={styles.button}
+                    onPress={handleStop}
+                    disabled={!isRecording}
+                >
+                    <Text style={styles.buttonText}>Stop</Text>
                 </TouchableOpacity>
             </View>
         </View>

@@ -120,6 +120,7 @@ export default function RecorderScreen() {
             // If no transcript, go back to idle instead of showing finished with nothing to save
             if (!transcriptText.trim()) {
                 setRecordingState('idle');
+                setDuration(0);
                 setAudioUri(null); // Clear the audio file since we won't save it
             } else {
                 setRecordingState('finished');
